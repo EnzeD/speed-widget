@@ -6,20 +6,20 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Mesures") {
-                LabeledContent("Fréquence", value: "Toutes les 5 secondes")
-                LabeledContent("Sur réseau limité", value: "Toutes les 15 secondes")
-                LabeledContent("Consommation", value: "Compteur journalier")
-                LabeledContent("Micro-test", value: "Manuel · 2 Mo maximum")
+            Section("Measurements") {
+                LabeledContent("Frequency", value: "Every 5 seconds")
+                LabeledContent("On constrained networks", value: "Every 15 seconds")
+                LabeledContent("Usage", value: "Daily counter")
+                LabeledContent("Micro-test", value: "Manual · 2 MB maximum")
             }
 
-            Section("Confidentialité") {
-                Text("Les sondes utilisent l’edge Cloudflare. Speed Widget ne collecte et ne transmet aucune analytique. Les résultats restent sur ce Mac.")
+            Section("Privacy") {
+                Text("Probes use the Cloudflare edge. Speed Widget does not collect or send analytics. Results stay on this Mac.")
                     .foregroundStyle(.secondary)
             }
 
-            Section("Méthode") {
-                Text("Le score réagit aux dernières sondes : latence sur environ 15 secondes, gigue et pertes sur environ 30 secondes. L’activité naturelle du réseau permet aussi d’estimer l’inflation de latence.")
+            Section("Method") {
+                Text("The score reacts to recent probes: latency over roughly 15 seconds, jitter and loss over roughly 30 seconds. Natural network activity also helps estimate latency inflation.")
                     .foregroundStyle(.secondary)
             }
         }

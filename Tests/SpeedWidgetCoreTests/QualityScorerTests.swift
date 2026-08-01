@@ -3,7 +3,7 @@ import Testing
 @testable import SpeedWidgetCore
 
 struct QualityScorerTests {
-    @Test("Une connexion stable et rapide obtient une excellente note")
+    @Test("A stable and fast connection gets an excellent score")
     func excellentConnection() {
         let now = Date()
         var samples: [ProbeSample] = []
@@ -26,7 +26,7 @@ struct QualityScorerTests {
         #expect(result.confidence == MeasurementConfidence.high)
     }
 
-    @Test("Trois échecs consécutifs indiquent une coupure")
+    @Test("Three consecutive failures indicate an outage")
     func detectsOfflineState() {
         let now = Date()
         let samples = (0..<3).map { index in
@@ -45,7 +45,7 @@ struct QualityScorerTests {
         #expect(result.lossPercent == 100)
     }
 
-    @Test("La latence sous activité pénalise le score")
+    @Test("Latency under load penalizes the score")
     func penalizesLatencyInflation() {
         let now = Date()
         let idle = (0..<20).map { index in
@@ -72,7 +72,7 @@ struct QualityScorerTests {
         #expect(result.score! < 80)
     }
 
-    @Test("Le micro-test n'influence que légèrement la note")
+    @Test("The micro-test has limited influence on the score")
     func capacityHasLimitedWeight() {
         let now = Date()
         let samples = (0..<20).map { index in
@@ -95,7 +95,7 @@ struct QualityScorerTests {
         #expect(withoutCapacity.score! - withCapacity.score! <= 10)
     }
 
-    @Test("Une perte récente influence immédiatement la note")
+    @Test("A recent loss immediately affects the score")
     func recentFailureAffectsCurrentScore() {
         let now = Date()
         var samples: [ProbeSample] = []
@@ -117,7 +117,7 @@ struct QualityScorerTests {
         #expect((70...80).contains(result.score!))
     }
 
-    @Test("La note privilégie les dernières trente secondes")
+    @Test("The score prioritizes the last thirty seconds")
     func recentQualityOverridesOldHistory() {
         let now = Date()
         var samples: [ProbeSample] = []

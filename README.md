@@ -1,33 +1,35 @@
 # Speed Widget
 
-Speed Widget est une app macOS minimaliste de barre des menus qui estime la qualité de la connexion Internet sans lancer de speed test permanent.
+Speed Widget is a minimalist macOS menu bar app that estimates Internet connection quality without running a permanent speed test.
 
-Le score sur 100 combine :
+The score out of 100 combines:
 
-- la latence applicative vers un edge proche ;
-- la gigue entre mesures successives ;
-- les échecs de sonde assimilés à des pertes ;
-- l'inflation de latence observée pendant l'activité naturelle du réseau ;
-- une classe de capacité facultative obtenue avec un micro-test manuel.
+- application latency to a nearby edge;
+- jitter between successive measurements;
+- probe failures treated as packet loss;
+- latency inflation observed during natural network activity;
+- an optional capacity tier from a manual micro-test.
 
-## Lancer en développement
+The panel also displays a score chart over a rolling five-minute window. The history resets when the network interface changes so two connections are not mixed.
 
-Prérequis : macOS 14 ou plus récent et Xcode 16 ou plus récent.
+## Run in development
+
+Requirements: macOS 14 or later and Xcode 16 or later.
 
 ```sh
 swift run SpeedWidget
 ```
 
-L'icône Wi‑Fi et le score apparaissent dans la barre des menus. Il faut arrêter le processus depuis le terminal ou utiliser le bouton d'alimentation dans le panneau.
+The Wi-Fi icon and score appear in the menu bar. Stop the process from the terminal or use the power button in the panel.
 
-## Construire l'application
+## Build the app
 
 ```sh
 ./scripts/package-app.sh
 open "dist/SpeedWidget.app"
 ```
 
-Le script produit une app signée localement dans `dist/SpeedWidget.app`.
+The script creates a locally signed app at `dist/SpeedWidget.app`.
 
 ## Tests
 
@@ -35,24 +37,24 @@ Le script produit une app signée localement dans `dist/SpeedWidget.app`.
 swift test
 ```
 
-## Consommation réseau
+## Network usage
 
-- une requête de zéro octet est effectuée toutes les 5 secondes ;
-- le score apparaît après trois sondes, sans lissage exponentiel ;
-- la latence reflète environ 15 secondes et la stabilité environ 30 secondes ;
-- l'intervalle passe à 15 secondes sur une connexion déclarée limitée par macOS ;
-- les métriques de `URLSession` servent à comptabiliser approximativement les en-têtes et le coût de connexion ;
-- la consommation journalière est affichée sans plafond ni arrêt automatique ;
-- le micro-test est exclusivement manuel et plafonné à 2 Mo.
+- a zero-byte request runs every five seconds;
+- the score appears after three probes, with no exponential smoothing;
+- latency reflects roughly 15 seconds and stability roughly 30 seconds;
+- the interval increases to 15 seconds on a network macOS marks as constrained;
+- `URLSession` metrics approximately track headers and connection overhead;
+- daily usage is displayed with no cap or automatic stop;
+- the micro-test is manual only and capped at 2 MB.
 
-Le MVP utilise `https://speed.cloudflare.com/__down`, l'endpoint public du moteur Cloudflare Speedtest. Une requête `HEAD` vers Apple n'est déclenchée que pour confirmer une panne ou une latence supérieure à 500 ms. Aucun résultat analytique n'est envoyé par Speed Widget.
+The MVP uses `https://speed.cloudflare.com/__down`, the public endpoint of the Cloudflare Speedtest engine. An Apple `HEAD` request is only triggered to confirm a failure or latency above 500 ms. Speed Widget sends no analytics results.
 
-## Limites du MVP
+## MVP limitations
 
-- Les requêtes HTTPS mesurent une latence applicative, pas un ping ICMP brut.
-- Une sonde HTTP perdue peut refléter un problème du serveur ; la sonde secondaire limite ce faux positif sans le supprimer totalement.
-- Le micro-test de 2 Mo fournit une classe de capacité, pas une mesure exacte du débit maximal.
-- La détection « en activité » repose sur les compteurs de l'interface réseau active et ne garantit pas que le lien soit saturé.
-- Un VPN peut modifier le chemin mesuré et la sélection de l'interface observée.
+- HTTPS requests measure application latency, not a raw ICMP ping.
+- A lost HTTP probe may reflect a server issue; the secondary probe reduces this false positive but cannot eliminate it completely.
+- The 2 MB micro-test provides a capacity tier, not an exact maximum throughput measurement.
+- “Under load” detection relies on counters from the active network interface and does not guarantee that the link is saturated.
+- A VPN can change the measured path and interface selection.
 
-La prochaine évolution naturelle est un petit endpoint QUIC dédié : un écho chiffré de quelques dizaines d'octets réduirait encore la consommation et rendrait la mesure des pertes plus directe.
+The next natural evolution is a small dedicated QUIC endpoint: an encrypted echo of a few dozen bytes would further reduce usage and make loss measurement more direct.

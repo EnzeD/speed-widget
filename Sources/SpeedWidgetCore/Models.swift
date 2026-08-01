@@ -10,12 +10,12 @@ public enum QualityGrade: String, Sendable {
 
     public var label: String {
         switch self {
-        case .measuring: "Mesure…"
-        case .excellent: "Excellente"
-        case .good: "Bonne"
-        case .fair: "Moyenne"
-        case .poor: "Mauvaise"
-        case .offline: "Hors ligne"
+        case .measuring: "Measuring…"
+        case .excellent: "Excellent"
+        case .good: "Good"
+        case .fair: "Fair"
+        case .poor: "Poor"
+        case .offline: "Offline"
         }
     }
 }
@@ -27,9 +27,9 @@ public enum MeasurementConfidence: String, Sendable {
 
     public var label: String {
         switch self {
-        case .low: "Faible"
-        case .medium: "Moyenne"
-        case .high: "Élevée"
+        case .low: "Low"
+        case .medium: "Medium"
+        case .high: "High"
         }
     }
 }
@@ -56,6 +56,18 @@ public struct ProbeSample: Sendable, Equatable {
     }
 }
 
+public struct QualityHistoryPoint: Identifiable, Sendable, Equatable {
+    public let date: Date
+    public let score: Int
+
+    public var id: Date { date }
+
+    public init(date: Date = .now, score: Int) {
+        self.date = date
+        self.score = score
+    }
+}
+
 public struct CapacityEstimate: Sendable, Equatable {
     public let megabitsPerSecond: Double
     public let measuredAt: Date
@@ -69,10 +81,10 @@ public struct CapacityEstimate: Sendable, Equatable {
 
     public var tierLabel: String {
         switch megabitsPerSecond {
-        case ..<5: "< 5 Mb/s"
-        case ..<25: "5–25 Mb/s"
-        case ..<100: "25–100 Mb/s"
-        default: "100+ Mb/s"
+        case ..<5: "< 5 Mbps"
+        case ..<25: "5–25 Mbps"
+        case ..<100: "25–100 Mbps"
+        default: "100+ Mbps"
         }
     }
 }

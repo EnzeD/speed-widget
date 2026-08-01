@@ -25,7 +25,7 @@ public struct NetworkPathState: Sendable, Equatable {
     public static let unknown = NetworkPathState(
         isReachable: false,
         interfaceName: nil,
-        interfaceLabel: "Réseau",
+        interfaceLabel: "Network",
         isExpensive: false,
         isConstrained: false
     )
@@ -77,13 +77,13 @@ public final class NetworkPathObserver: @unchecked Sendable {
 
     private static func label(for type: NWInterface.InterfaceType?) -> String {
         switch type {
-        case .wifi: "Wi‑Fi"
+        case .wifi: "Wi-Fi"
         case .wiredEthernet: "Ethernet"
-        case .cellular: "Cellulaire"
-        case .loopback: "Boucle locale"
-        case .other: "Autre réseau"
-        case nil: "Réseau"
-        @unknown default: "Réseau"
+        case .cellular: "Cellular"
+        case .loopback: "Local loopback"
+        case .other: "Other network"
+        case nil: "Network"
+        @unknown default: "Network"
         }
     }
 }

@@ -22,6 +22,8 @@ struct DashboardView: View {
             Divider()
             metrics
             Divider()
+            QualityHistoryChart(points: monitor.qualityHistory, color: gradeColor)
+            Divider()
             capacitySection
             Divider()
             footer
@@ -46,13 +48,13 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(monitor.snapshot.grade.label)
                     .font(.title3.weight(.semibold))
-                Text("Qualité du réseau")
+                Text("Network quality")
                     .foregroundStyle(.secondary)
                 HStack(spacing: 5) {
                     Circle().fill(gradeColor).frame(width: 7, height: 7)
                     Text(monitor.pathState.interfaceLabel)
                     Text("·")
-                    Text("Confiance \(monitor.snapshot.confidence.label.lowercased())")
+                    Text("Confidence \(monitor.snapshot.confidence.label.lowercased())")
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -66,24 +68,24 @@ struct DashboardView: View {
         Grid(horizontalSpacing: 12, verticalSpacing: 12) {
             GridRow {
                 MetricView(
-                    title: "Latence",
+                    title: "Latency",
                     value: milliseconds(monitor.snapshot.latencyMilliseconds),
                     systemImage: "arrow.left.arrow.right"
                 )
                 MetricView(
-                    title: "Gigue",
+                    title: "Jitter",
                     value: milliseconds(monitor.snapshot.jitterMilliseconds),
                     systemImage: "waveform.path"
                 )
             }
             GridRow {
                 MetricView(
-                    title: "Pertes",
+                    title: "Loss",
                     value: percent(monitor.snapshot.lossPercent),
                     systemImage: "drop.triangle"
                 )
                 MetricView(
-                    title: "En activité",
+                    title: "Under load",
                     value: activeLatencyLabel,
                     systemImage: "bolt.horizontal"
                 )
@@ -96,9 +98,9 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Capacité approximative")
+                    Text("Approximate capacity")
                         .font(.subheadline.weight(.medium))
-                    Text(monitor.capacity?.tierLabel ?? "Non mesurée")
+                    Text(monitor.capacity?.tierLabel ?? "Not measured")
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -124,7 +126,7 @@ struct DashboardView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             } else {
-                Text("Maximum 2 Mo, uniquement à la demande.")
+                Text("Up to 2 MB, on demand only.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -135,7 +137,7 @@ struct DashboardView: View {
     private var footer: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Sondes aujourd’hui")
+                Text("Probes today")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(usageLabel)
@@ -147,20 +149,20 @@ struct DashboardView: View {
                 Image(systemName: "gearshape")
             }
             .buttonStyle(.plain)
-            .help("Réglages")
+            .help("Settings")
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
                 Image(systemName: "power")
             }
             .buttonStyle(.plain)
-            .help("Quitter Speed Widget")
+            .help("Quit Speed Widget")
         }
         .padding(14)
     }
 
     private var activeLatencyLabel: String {
-        guard let active = monitor.snapshot.activeLatencyMilliseconds else { return "En attente" }
+        guard let active = monitor.snapshot.activeLatencyMilliseconds else { return "Waiting" }
         if let inflation = monitor.snapshot.loadInflation {
             return "\(Int(active.rounded())) ms · ×\(inflation.formatted(.number.precision(.fractionLength(1))))"
         }
@@ -169,7 +171,7 @@ struct DashboardView: View {
 
     private var usageLabel: String {
         let consumed = Double(monitor.dailyProbeBytes) / 1_000_000
-        return "\(consumed.formatted(.number.precision(.fractionLength(2)))) Mo"
+        return "\(consumed.formatted(.number.precision(.fractionLength(2)))) MB"
     }
 
     private func milliseconds(_ value: Double?) -> String {

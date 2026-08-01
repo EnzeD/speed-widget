@@ -14,4 +14,4 @@ cp ".build/release/SpeedWidget" "$MACOS_DIR/SpeedWidget"
 cp "Support/Info.plist" "$CONTENTS_DIR/Info.plist"
 codesign --force --deep --sign - "$APP_DIR"
 
-print "App créée : $APP_DIR"
+print "App created: $APP_DIR"

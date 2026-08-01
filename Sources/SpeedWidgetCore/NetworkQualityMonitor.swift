@@ -6,6 +6,7 @@ public final class NetworkQualityMonitor: ObservableObject {
     @Published public private(set) var snapshot: QualitySnapshot = .measuring
     @Published public private(set) var capacity: CapacityEstimate?
     @Published public private(set) var pathState: NetworkPathState = .unknown
+    @Published public private(set) var qualityHistory: [QualityHistoryPoint] = []
     @Published public private(set) var dailyProbeBytes = 0
     @Published public private(set) var isRunningCapacityTest = false
     @Published public private(set) var capacityTestError: String?
@@ -66,7 +67,7 @@ public final class NetworkQualityMonitor: ObservableObject {
     public func runCapacityTest() {
         guard !isRunningCapacityTest else { return }
         guard !pathState.isExpensive, !pathState.isConstrained else {
-            capacityTestError = "Micro-test désactivé sur une connexion limitée."
+            capacityTestError = "Micro-test disabled on a constrained connection."
             return
         }
 
@@ -83,7 +84,7 @@ public final class NetworkQualityMonitor: ObservableObject {
                 self.dailyProbeBytes = self.usage.consumedBytes()
                 self.snapshot = QualityScorer.snapshot(from: self.samples, capacity: result)
             } catch {
-                self.capacityTestError = "Le micro-test a échoué."
+                self.capacityTestError = "Micro-test failed."
             }
             self.isRunningCapacityTest = false
         }
@@ -95,6 +96,7 @@ public final class NetworkQualityMonitor: ObservableObject {
         if pathState.interfaceName != lastInterfaceName {
             lastInterfaceName = pathState.interfaceName
             samples.removeAll(keepingCapacity: true)
+            qualityHistory.removeAll(keepingCapacity: true)
             capacity = nil
             trafficMonitor.reset(interfaceName: pathState.interfaceName)
             snapshot = pathState.isReachable ? .measuring : .offline
@@ -132,24 +134,39 @@ public final class NetworkQualityMonitor: ObservableObject {
         )
         samples.append(sample)
         trimSamples()
-        snapshot = QualityScorer.snapshot(from: samples, capacity: capacity)
+        updateSnapshot(
+            QualityScorer.snapshot(from: samples, capacity: capacity),
+            at: sample.date
+        )
     }
 
     private func appendFailure(transferredBytes: Int) {
-        samples.append(
-            ProbeSample(
-                latencyMilliseconds: nil,
-                succeeded: false,
-                observedDuringTraffic: false,
-                transferredBytes: transferredBytes
-            )
+        let sample = ProbeSample(
+            latencyMilliseconds: nil,
+            succeeded: false,
+            observedDuringTraffic: false,
+            transferredBytes: transferredBytes
         )
+        samples.append(sample)
         trimSamples()
-        snapshot = QualityScorer.snapshot(from: samples, capacity: capacity)
+        updateSnapshot(
+            QualityScorer.snapshot(from: samples, capacity: capacity),
+            at: sample.date
+        )
     }
 
     private func trimSamples() {
         let cutoff = Date.now.addingTimeInterval(-600)
         samples.removeAll { $0.date < cutoff }
+    }
+
+    private func updateSnapshot(_ nextSnapshot: QualitySnapshot, at date: Date) {
+        snapshot = nextSnapshot
+
+        let cutoff = date.addingTimeInterval(-300)
+        qualityHistory.removeAll { $0.date < cutoff }
+        if let score = nextSnapshot.score {
+            qualityHistory.append(QualityHistoryPoint(date: date, score: score))
+        }
     }
 }
