@@ -6,7 +6,15 @@ struct DashboardView: View {
     @ObservedObject var monitor: NetworkQualityMonitor
 
     private var gradeColor: Color {
-        switch monitor.snapshot.grade {
+        color(for: monitor.primarySnapshot.grade)
+    }
+
+    private var currentGradeColor: Color {
+        color(for: monitor.snapshot.grade)
+    }
+
+    private func color(for grade: QualityGrade) -> Color {
+        switch grade {
         case .excellent: .green
         case .good: .mint
         case .fair: .orange
@@ -22,7 +30,7 @@ struct DashboardView: View {
             Divider()
             metrics
             Divider()
-            QualityHistoryChart(points: monitor.qualityHistory, color: gradeColor)
+            QualityHistoryChart(points: monitor.qualityHistory, color: currentGradeColor)
             Divider()
             capacitySection
             Divider()
@@ -39,17 +47,27 @@ struct DashboardView: View {
                     .fill(gradeColor.opacity(0.14))
                 Circle()
                     .strokeBorder(gradeColor.opacity(0.35), lineWidth: 1)
-                Text(monitor.menuBarScore)
+                Text(monitor.primaryScore)
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
                     .monospacedDigit()
             }
             .frame(width: 68, height: 68)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(monitor.snapshot.grade.label)
+                Text(monitor.primarySnapshot.grade.label)
                     .font(.title3.weight(.semibold))
-                Text("Network quality")
-                    .foregroundStyle(.secondary)
+                if monitor.isUnderLoad,
+                   let idleScore = monitor.idleSnapshot.score,
+                   let underLoadScore = monitor.underLoadScore {
+                    Text("Idle \(idleScore) · Under load \(underLoadScore)")
+                        .foregroundStyle(.secondary)
+                } else if monitor.isUnderLoad {
+                    Text("Under load · Learning idle baseline")
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Network quality")
+                        .foregroundStyle(.secondary)
+                }
                 HStack(spacing: 5) {
                     Circle().fill(gradeColor).frame(width: 7, height: 7)
                     Text(monitor.pathState.interfaceLabel)
