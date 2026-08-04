@@ -1,5 +1,7 @@
 # Speed Widget
 
+<img width="332" height="591" alt="image" src="https://github.com/user-attachments/assets/d121c63c-7214-4227-91d0-d85e7aef9fe7" />
+
 Speed Widget is a lightweight macOS menu bar app that shows the current quality of your Internet connection without running a permanent, bandwidth-heavy speed test.
 
 It provides a reactive score out of 100, a rolling five-minute graph, latency, jitter, estimated loss, and an optional on-demand capacity tier. It is designed for “how good is my connection right now?” rather than a precise maximum download-speed benchmark.
