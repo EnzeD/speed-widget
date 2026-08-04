@@ -61,6 +61,14 @@ struct DashboardView: View {
                    let underLoadScore = monitor.underLoadScore {
                     Text("Idle \(idleScore) · Under load \(underLoadScore)")
                         .foregroundStyle(.secondary)
+                } else if monitor.hasUnderLoadMeasurement,
+                          let idleScore = monitor.idleSnapshot.score {
+                    Text("Idle \(idleScore) · No measurable degradation")
+                        .foregroundStyle(.secondary)
+                } else if monitor.isUnderLoad,
+                          monitor.idleSnapshot.score != nil {
+                    Text("Under load · Measuring impact")
+                        .foregroundStyle(.secondary)
                 } else if monitor.isUnderLoad {
                     Text("Under load · Learning idle baseline")
                         .foregroundStyle(.secondary)

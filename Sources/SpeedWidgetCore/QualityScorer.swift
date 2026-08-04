@@ -1,16 +1,45 @@
 import Foundation
 
 public enum QualityScorer {
+    public static let minimumCredibleDegradationPoints = 5
+
     public static func idleSnapshot(
         from allSamples: [ProbeSample],
-        capacity: CapacityEstimate? = nil
+        capacity: CapacityEstimate? = nil,
+        now: Date = .now
     ) -> QualitySnapshot {
-        let idleSamples = allSamples.filter { !$0.observedDuringTraffic }
-        guard let lastIdleDate = idleSamples.last?.date else {
-            return .measuring
-        }
+        filteredSnapshot(
+            from: allSamples,
+            capacity: capacity,
+            now: now,
+            matching: { !$0.observedDuringTraffic }
+        )
+    }
 
-        return snapshot(from: idleSamples, capacity: capacity, now: lastIdleDate)
+    public static func activeSnapshot(
+        from allSamples: [ProbeSample],
+        capacity: CapacityEstimate? = nil,
+        now: Date = .now
+    ) -> QualitySnapshot {
+        filteredSnapshot(
+            from: allSamples,
+            capacity: capacity,
+            now: now,
+            matching: { $0.observedDuringTraffic }
+        )
+    }
+
+    public static func credibleUnderLoadScore(
+        idle: QualitySnapshot,
+        active: QualitySnapshot
+    ) -> Int? {
+        guard active.sampleCount >= 3,
+              let idleScore = idle.score,
+              let activeScore = active.score,
+              idleScore - activeScore >= minimumCredibleDegradationPoints else {
+            return nil
+        }
+        return activeScore
     }
 
     public static func snapshot(
@@ -165,6 +194,21 @@ public enum QualityScorer {
             return lower.1 + (upper.1 - lower.1) * progress
         }
         return last.1
+    }
+
+    private static func filteredSnapshot(
+        from allSamples: [ProbeSample],
+        capacity: CapacityEstimate?,
+        now: Date,
+        matching predicate: (ProbeSample) -> Bool
+    ) -> QualitySnapshot {
+        let filteredSamples = allSamples.filter(predicate)
+        guard let lastSampleDate = filteredSamples.last?.date,
+              now.timeIntervalSince(lastSampleDate) <= 300 else {
+            return .measuring
+        }
+
+        return snapshot(from: filteredSamples, capacity: capacity, now: lastSampleDate)
     }
 
     private static func confidence(for samples: [ProbeSample], successfulCount: Int) -> MeasurementConfidence {

@@ -91,7 +91,7 @@ struct QualityScorerTests {
         #expect(result.score! < 80)
     }
 
-    @Test("The idle score remains separate from the score under load")
+    @Test("Idle and active scores use separate samples")
     func separatesIdleAndUnderLoadScores() {
         let now = Date()
         let idle = (0..<6).map { index in
@@ -112,13 +112,68 @@ struct QualityScorerTests {
         }
 
         let samples = idle + active
-        let idleResult = QualityScorer.idleSnapshot(from: samples)
-        let currentResult = QualityScorer.snapshot(from: samples, now: now)
+        let idleResult = QualityScorer.idleSnapshot(from: samples, now: now)
+        let activeResult = QualityScorer.activeSnapshot(from: samples, now: now)
 
         #expect(idleResult.score != nil)
-        #expect(currentResult.score != nil)
+        #expect(activeResult.score != nil)
         #expect(idleResult.score! >= 85)
-        #expect(currentResult.score! < idleResult.score!)
+        #expect(activeResult.score! < idleResult.score!)
+        #expect(QualityScorer.credibleUnderLoadScore(idle: idleResult, active: activeResult) == activeResult.score)
+    }
+
+    @Test("A better active score is not presented as degradation")
+    func ignoresApparentImprovementUnderLoad() {
+        let now = Date()
+        let idle = (0..<6).map { index in
+            ProbeSample(
+                date: now.addingTimeInterval(Double(index - 12) * 5),
+                latencyMilliseconds: 180,
+                succeeded: true,
+                observedDuringTraffic: false
+            )
+        }
+        let active = (0..<6).map { index in
+            ProbeSample(
+                date: now.addingTimeInterval(Double(index - 6) * 5),
+                latencyMilliseconds: 20,
+                succeeded: true,
+                observedDuringTraffic: true
+            )
+        }
+
+        let idleResult = QualityScorer.idleSnapshot(from: idle + active, now: now)
+        let activeResult = QualityScorer.activeSnapshot(from: idle + active, now: now)
+
+        #expect(activeResult.score! > idleResult.score!)
+        #expect(QualityScorer.credibleUnderLoadScore(idle: idleResult, active: activeResult) == nil)
+    }
+
+    @Test("Three loaded probes are required before comparing scores")
+    func waitsForEnoughActiveSamples() {
+        let now = Date()
+        let idle = (0..<6).map { index in
+            ProbeSample(
+                date: now.addingTimeInterval(Double(index - 8) * 5),
+                latencyMilliseconds: 20,
+                succeeded: true,
+                observedDuringTraffic: false
+            )
+        }
+        let active = (0..<2).map { index in
+            ProbeSample(
+                date: now.addingTimeInterval(Double(index - 2) * 5),
+                latencyMilliseconds: 250,
+                succeeded: true,
+                observedDuringTraffic: true
+            )
+        }
+
+        let idleResult = QualityScorer.idleSnapshot(from: idle + active, now: now)
+        let activeResult = QualityScorer.activeSnapshot(from: idle + active, now: now)
+
+        #expect(activeResult.score == nil)
+        #expect(QualityScorer.credibleUnderLoadScore(idle: idleResult, active: activeResult) == nil)
     }
 
     @Test("The micro-test has limited influence on the score")
