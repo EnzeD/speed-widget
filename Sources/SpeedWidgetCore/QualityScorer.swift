@@ -1,6 +1,18 @@
 import Foundation
 
 public enum QualityScorer {
+    public static func idleSnapshot(
+        from allSamples: [ProbeSample],
+        capacity: CapacityEstimate? = nil
+    ) -> QualitySnapshot {
+        let idleSamples = allSamples.filter { !$0.observedDuringTraffic }
+        guard let lastIdleDate = idleSamples.last?.date else {
+            return .measuring
+        }
+
+        return snapshot(from: idleSamples, capacity: capacity, now: lastIdleDate)
+    }
+
     public static func snapshot(
         from allSamples: [ProbeSample],
         capacity: CapacityEstimate? = nil,

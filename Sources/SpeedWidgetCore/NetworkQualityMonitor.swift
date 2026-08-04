@@ -4,6 +4,8 @@ import Foundation
 @MainActor
 public final class NetworkQualityMonitor: ObservableObject {
     @Published public private(set) var snapshot: QualitySnapshot = .measuring
+    @Published public private(set) var idleSnapshot: QualitySnapshot = .measuring
+    @Published public private(set) var isUnderLoad = false
     @Published public private(set) var capacity: CapacityEstimate?
     @Published public private(set) var pathState: NetworkPathState = .unknown
     @Published public private(set) var qualityHistory: [QualityHistoryPoint] = []
@@ -41,7 +43,35 @@ public final class NetworkQualityMonitor: ObservableObject {
     }
 
     public var menuBarScore: String {
-        snapshot.score.map(String.init) ?? "—"
+        guard let currentScore = snapshot.score else { return "—" }
+        if snapshot.grade == .offline { return String(currentScore) }
+        guard let idleScore = idleSnapshot.score else { return String(currentScore) }
+        if isUnderLoad {
+            return "\(idleScore) (\(currentScore))"
+        }
+        return String(idleScore)
+    }
+
+    public var primarySnapshot: QualitySnapshot {
+        if snapshot.grade == .offline { return snapshot }
+        return idleSnapshot.score == nil ? snapshot : idleSnapshot
+    }
+
+    public var primaryScore: String {
+        primarySnapshot.score.map(String.init) ?? "—"
+    }
+
+    public var underLoadScore: Int? {
+        isUnderLoad ? snapshot.score : nil
+    }
+
+    public var menuBarAccessibilityLabel: String {
+        if isUnderLoad,
+           let idleScore = idleSnapshot.score,
+           let currentScore = snapshot.score {
+            return "Network quality \(idleScore) at idle, \(currentScore) under load"
+        }
+        return "Network quality, score \(primaryScore)"
     }
 
     public func start() {
@@ -83,6 +113,7 @@ public final class NetworkQualityMonitor: ObservableObject {
                 self.usage.record(result.transferredBytes)
                 self.dailyProbeBytes = self.usage.consumedBytes()
                 self.snapshot = QualityScorer.snapshot(from: self.samples, capacity: result)
+                self.idleSnapshot = QualityScorer.idleSnapshot(from: self.samples, capacity: result)
             } catch {
                 self.capacityTestError = "Micro-test failed."
             }
@@ -100,6 +131,8 @@ public final class NetworkQualityMonitor: ObservableObject {
             capacity = nil
             trafficMonitor.reset(interfaceName: pathState.interfaceName)
             snapshot = pathState.isReachable ? .measuring : .offline
+            idleSnapshot = .measuring
+            isUnderLoad = false
         }
 
         guard pathState.isReachable else {
@@ -136,7 +169,8 @@ public final class NetworkQualityMonitor: ObservableObject {
         trimSamples()
         updateSnapshot(
             QualityScorer.snapshot(from: samples, capacity: capacity),
-            at: sample.date
+            at: sample.date,
+            underLoad: sample.observedDuringTraffic
         )
     }
 
@@ -151,7 +185,8 @@ public final class NetworkQualityMonitor: ObservableObject {
         trimSamples()
         updateSnapshot(
             QualityScorer.snapshot(from: samples, capacity: capacity),
-            at: sample.date
+            at: sample.date,
+            underLoad: false
         )
     }
 
@@ -160,8 +195,10 @@ public final class NetworkQualityMonitor: ObservableObject {
         samples.removeAll { $0.date < cutoff }
     }
 
-    private func updateSnapshot(_ nextSnapshot: QualitySnapshot, at date: Date) {
+    private func updateSnapshot(_ nextSnapshot: QualitySnapshot, at date: Date, underLoad: Bool) {
         snapshot = nextSnapshot
+        idleSnapshot = QualityScorer.idleSnapshot(from: samples, capacity: capacity)
+        isUnderLoad = underLoad
 
         let cutoff = date.addingTimeInterval(-300)
         qualityHistory.removeAll { $0.date < cutoff }

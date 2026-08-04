@@ -19,7 +19,7 @@ struct SettingsView: View {
             }
 
             Section("Method") {
-                Text("The score reacts to recent probes: latency over roughly 15 seconds, jitter and loss over roughly 30 seconds. Natural network activity also helps estimate latency inflation.")
+                Text("The score reacts to recent probes: latency over roughly 15 seconds, jitter and loss over roughly 30 seconds. During network activity, the menu bar shows the idle baseline first and the current score under load in parentheses, for example 88 (58).")
                     .foregroundStyle(.secondary)
             }
         }

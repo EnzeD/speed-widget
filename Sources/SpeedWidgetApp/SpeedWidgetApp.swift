@@ -22,7 +22,7 @@ struct SpeedWidgetApp: App {
                 Text(monitor.menuBarScore)
                     .monospacedDigit()
             }
-            .accessibilityLabel("Network quality, score \(monitor.menuBarScore)")
+            .accessibilityLabel(monitor.menuBarAccessibilityLabel)
         }
         .menuBarExtraStyle(.window)
 

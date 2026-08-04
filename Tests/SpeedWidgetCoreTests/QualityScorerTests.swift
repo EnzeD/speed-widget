@@ -91,6 +91,36 @@ struct QualityScorerTests {
         #expect(result.score! < 80)
     }
 
+    @Test("The idle score remains separate from the score under load")
+    func separatesIdleAndUnderLoadScores() {
+        let now = Date()
+        let idle = (0..<6).map { index in
+            ProbeSample(
+                date: now.addingTimeInterval(Double(index - 12) * 5),
+                latencyMilliseconds: 20,
+                succeeded: true,
+                observedDuringTraffic: false
+            )
+        }
+        let active = (0..<6).map { index in
+            ProbeSample(
+                date: now.addingTimeInterval(Double(index - 6) * 5),
+                latencyMilliseconds: 180,
+                succeeded: true,
+                observedDuringTraffic: true
+            )
+        }
+
+        let samples = idle + active
+        let idleResult = QualityScorer.idleSnapshot(from: samples)
+        let currentResult = QualityScorer.snapshot(from: samples, now: now)
+
+        #expect(idleResult.score != nil)
+        #expect(currentResult.score != nil)
+        #expect(idleResult.score! >= 85)
+        #expect(currentResult.score! < idleResult.score!)
+    }
+
     @Test("The micro-test has limited influence on the score")
     func capacityHasLimitedWeight() {
         let now = Date()
