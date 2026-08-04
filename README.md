@@ -18,7 +18,7 @@ The score combines:
 
 The score appears after three probes. It deliberately gives priority to the last 15–30 seconds instead of applying heavy smoothing. The chart keeps the last five minutes and resets when the active network interface changes, so separate connections are never mixed.
 
-When meaningful traffic is detected, the menu bar keeps the estimated idle score first and adds the current score under load in parentheses. For example, `88 (58)` means an idle baseline of 88 and a current experience of 58 while the connection is busy. The parenthetical score disappears when the load stops.
+When meaningful traffic is detected, a separate score is calculated exclusively from probes observed during that traffic. After three loaded probes, the menu bar adds it in parentheses only when it is at least five points below the idle baseline. For example, `88 (58)` means an idle baseline of 88 and a measured loaded experience of 58. If no meaningful degradation is detected, the menu bar keeps the idle score alone. The parenthetical score also disappears when the load stops.
 
 ## Privacy and network behaviour
 
