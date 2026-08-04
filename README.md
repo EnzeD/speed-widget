@@ -1,60 +1,73 @@
 # Speed Widget
 
-Speed Widget is a minimalist macOS menu bar app that estimates Internet connection quality without running a permanent speed test.
+Speed Widget is a lightweight macOS menu bar app that shows the current quality of your Internet connection without running a permanent, bandwidth-heavy speed test.
 
-The score out of 100 combines:
+It provides a reactive score out of 100, a rolling five-minute graph, latency, jitter, estimated loss, and an optional on-demand capacity tier. It is designed for “how good is my connection right now?” rather than a precise maximum download-speed benchmark.
+
+## What it measures
+
+The score combines:
 
 - application latency to a nearby edge;
-- jitter between successive measurements;
-- probe failures treated as packet loss;
-- latency inflation observed during natural network activity;
+- jitter between recent measurements;
+- failed probes, treated as potential packet loss;
+- latency inflation observed during normal network activity;
 - an optional capacity tier from a manual micro-test.
 
-The panel also displays a score chart over a rolling five-minute window. The history resets when the network interface changes so two connections are not mixed.
+The score appears after three probes. It deliberately gives priority to the last 15–30 seconds instead of applying heavy smoothing. The chart keeps the last five minutes and resets when the active network interface changes, so separate connections are never mixed.
 
-## Run in development
+## Privacy and network behaviour
+
+- A zero-byte HTTPS request runs every five seconds, or every 15 seconds when macOS marks the connection as constrained.
+- A manual micro-test may download up to 2 MB; it never runs automatically.
+- Probes use `https://speed.cloudflare.com/__down`. An Apple HTTPS `HEAD` request is only used as a fallback after a failure or latency above 500 ms.
+- Requests use an ephemeral session with no cache, cookies, or stored credentials. Redirects are rejected and response sizes are bounded.
+- The app does not collect telemetry, analytics, account details, or measurement results. Results remain on the Mac; the daily transfer counter is stored locally in UserDefaults.
+
+Speed Widget is sandboxed with outbound network access only. Its local build is ad-hoc signed with the hardened runtime, but it is **not notarized** or signed with a Developer ID certificate.
+
+## Install
+
+### Build from source
 
 Requirements: macOS 14 or later and Xcode 16 or later.
+
+```sh
+git clone https://github.com/EnzeD/speed-widget.git
+cd speed-widget
+./scripts/package-app.sh
+open "dist/SpeedWidget.app"
+```
+
+The script creates `dist/SpeedWidget.app` for the architecture of the Mac that builds it. Because the bundle is ad-hoc signed rather than notarized, macOS may show a first-launch warning. In Finder, Control-click the app, choose **Open**, then confirm **Open**. Do not disable Gatekeeper globally.
+
+### Run during development
 
 ```sh
 swift run SpeedWidget
 ```
 
-The Wi-Fi icon and score appear in the menu bar. Stop the process from the terminal or use the power button in the panel.
+The score appears in the menu bar. Quit it from the power button in the panel or stop the development process in Terminal.
 
-## Build the app
-
-```sh
-./scripts/package-app.sh
-open "dist/SpeedWidget.app"
-```
-
-The script creates a locally signed app at `dist/SpeedWidget.app`.
-
-## Tests
+## Verify the project
 
 ```sh
 swift test
+./scripts/package-app.sh
 ```
 
-## Network usage
+The packaging script verifies the resulting code signature before reporting success.
 
-- a zero-byte request runs every five seconds;
-- the score appears after three probes, with no exponential smoothing;
-- latency reflects roughly 15 seconds and stability roughly 30 seconds;
-- the interval increases to 15 seconds on a network macOS marks as constrained;
-- `URLSession` metrics approximately track headers and connection overhead;
-- daily usage is displayed with no cap or automatic stop;
-- the micro-test is manual only and capped at 2 MB.
+## Limitations
 
-The MVP uses `https://speed.cloudflare.com/__down`, the public endpoint of the Cloudflare Speedtest engine. An Apple `HEAD` request is only triggered to confirm a failure or latency above 500 ms. Speed Widget sends no analytics results.
+- HTTPS probes measure application-level latency, not raw ICMP ping.
+- A failed HTTP probe can be caused by a third-party endpoint issue; the fallback reduces, but cannot eliminate, false positives.
+- The manual micro-test is a capacity tier, not an exact maximum throughput measurement.
+- “Under load” relies on counters from the active interface and does not prove the link is saturated.
+- A VPN, proxy, captive portal, or unusual routing can change the path being measured.
 
-## MVP limitations
+## Contributing
 
-- HTTPS requests measure application latency, not a raw ICMP ping.
-- A lost HTTP probe may reflect a server issue; the secondary probe reduces this false positive but cannot eliminate it completely.
-- The 2 MB micro-test provides a capacity tier, not an exact maximum throughput measurement.
-- “Under load” detection relies on counters from the active network interface and does not guarantee that the link is saturated.
-- A VPN can change the measured path and interface selection.
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md), keep changes focused, run `swift test`, and open a pull request against `main`. Never commit credentials, certificates, generated app bundles, or local configuration.
 
-The next natural evolution is a small dedicated QUIC endpoint: an encrypted echo of a few dozen bytes would further reduce usage and make loss measurement more direct.
+For a suspected security vulnerability, use the private reporting process in [SECURITY.md](SECURITY.md), not a public issue.

@@ -57,6 +57,18 @@ private final class TaskMetricsCollector: NSObject, URLSessionTaskDelegate, @unc
         }
     }
 
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping @Sendable (URLRequest?) -> Void
+    ) {
+        // The two probe endpoints do not need redirects. Rejecting them prevents a
+        // probe from silently being sent to an unexpected host or downgraded URL.
+        completionHandler(nil)
+    }
+
     func estimatedWireBytes(fallbackBodyBytes: Int) -> Int {
         lock.lock()
         defer { lock.unlock() }
@@ -68,6 +80,9 @@ private final class TaskMetricsCollector: NSObject, URLSessionTaskDelegate, @unc
 }
 
 public actor HTTPProbeClient {
+    public static let maximumCapacityTestBytes = 2_000_000
+
+    private static let maximumProbeResponseBytes = 32_768
     private let session: URLSession
 
     public init() {
@@ -77,31 +92,48 @@ public actor HTTPProbeClient {
         configuration.waitsForConnectivity = false
         configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         configuration.urlCache = nil
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.urlCredentialStorage = nil
         configuration.httpMaximumConnectionsPerHost = 1
         configuration.httpShouldUsePipelining = true
         session = URLSession(configuration: configuration)
     }
 
     public func probe(_ endpoint: ProbeEndpoint) async -> ProbeResult {
+        guard endpoint.url.scheme?.lowercased() == "https", endpoint.url.host != nil else {
+            return ProbeResult(
+                succeeded: false,
+                latencyMilliseconds: nil,
+                transferredBytes: 0,
+                statusCode: nil
+            )
+        }
+
         var request = URLRequest(url: endpoint.url)
         request.httpMethod = endpoint.method
         request.timeoutInterval = 3
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         request.setValue("SpeedWidget/0.1", forHTTPHeaderField: "User-Agent")
+        request.httpShouldHandleCookies = false
 
         let metrics = TaskMetricsCollector()
         let clock = ContinuousClock()
         let start = clock.now
 
         do {
-            let (data, response) = try await session.data(for: request, delegate: metrics)
+            let (receivedBytes, response) = try await receive(
+                request,
+                maximumResponseBytes: Self.maximumProbeResponseBytes,
+                delegate: metrics
+            )
             let elapsed = durationSeconds(start.duration(to: clock.now))
             let statusCode = (response as? HTTPURLResponse)?.statusCode
-            let succeeded = statusCode.map { (200...399).contains($0) } ?? false
+            let succeeded = statusCode.map { (200...299).contains($0) } ?? false
             return ProbeResult(
                 succeeded: succeeded,
                 latencyMilliseconds: succeeded ? elapsed * 1_000 : nil,
-                transferredBytes: metrics.estimatedWireBytes(fallbackBodyBytes: data.count),
+                transferredBytes: metrics.estimatedWireBytes(fallbackBodyBytes: receivedBytes),
                 statusCode: statusCode
             )
         } catch {
@@ -116,19 +148,21 @@ public actor HTTPProbeClient {
 
     public func capacityTest(
         baselineLatencyMilliseconds: Double?,
-        maximumBytes: Int = 2_000_000
+        maximumBytes: Int = HTTPProbeClient.maximumCapacityTestBytes
     ) async throws -> CapacityEstimate {
-        let firstStageBytes = min(250_000, maximumBytes)
+        let boundedMaximumBytes = try Self.boundedCapacityTestBytes(maximumBytes)
+
+        let firstStageBytes = min(250_000, boundedMaximumBytes)
         let first = try await download(byteCount: firstStageBytes, baselineLatencyMilliseconds: baselineLatencyMilliseconds)
 
-        if maximumBytes == firstStageBytes || first.durationSeconds >= 0.75 {
+        if boundedMaximumBytes == firstStageBytes || first.durationSeconds >= 0.75 {
             return CapacityEstimate(
                 megabitsPerSecond: first.megabitsPerSecond,
                 transferredBytes: first.transferredBytes
             )
         }
 
-        let secondStageBytes = maximumBytes - firstStageBytes
+        let secondStageBytes = boundedMaximumBytes - firstStageBytes
         let second = try await download(byteCount: secondStageBytes, baselineLatencyMilliseconds: baselineLatencyMilliseconds)
         let weightedRate = (
             first.megabitsPerSecond * Double(first.transferredBytes)
@@ -151,21 +185,54 @@ public actor HTTPProbeClient {
         request.timeoutInterval = 10
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         request.setValue("SpeedWidget/0.1", forHTTPHeaderField: "User-Agent")
+        request.httpShouldHandleCookies = false
 
         let clock = ContinuousClock()
         let start = clock.now
-        let (data, response) = try await session.data(for: request)
+        let (receivedBytes, response) = try await receive(
+            request,
+            maximumResponseBytes: byteCount,
+            delegate: TaskMetricsCollector()
+        )
         let elapsed = durationSeconds(start.duration(to: clock.now))
         guard let response = response as? HTTPURLResponse,
               (200...299).contains(response.statusCode),
-              !data.isEmpty else {
+              receivedBytes > 0 else {
             throw URLError(.badServerResponse)
         }
 
         let baseline = min(elapsed * 0.8, (baselineLatencyMilliseconds ?? 0) / 1_000)
         let transferDuration = max(0.01, elapsed - baseline)
-        let rate = Double(data.count) * 8 / transferDuration / 1_000_000
-        return (rate, elapsed, data.count)
+        let rate = Double(receivedBytes) * 8 / transferDuration / 1_000_000
+        return (rate, elapsed, receivedBytes)
+    }
+
+    private func receive(
+        _ request: URLRequest,
+        maximumResponseBytes: Int,
+        delegate: URLSessionTaskDelegate?
+    ) async throws -> (receivedBytes: Int, response: URLResponse) {
+        let (bytes, response) = try await session.bytes(for: request, delegate: delegate)
+        if response.expectedContentLength > Int64(maximumResponseBytes) {
+            throw URLError(.dataLengthExceedsMaximum)
+        }
+
+        var receivedBytes = 0
+        for try await _ in bytes {
+            receivedBytes += 1
+            if receivedBytes > maximumResponseBytes {
+                throw URLError(.dataLengthExceedsMaximum)
+            }
+        }
+
+        return (receivedBytes, response)
+    }
+
+    static func boundedCapacityTestBytes(_ requestedBytes: Int) throws -> Int {
+        guard requestedBytes > 0 else {
+            throw URLError(.badURL)
+        }
+        return min(requestedBytes, maximumCapacityTestBytes)
     }
 }
 

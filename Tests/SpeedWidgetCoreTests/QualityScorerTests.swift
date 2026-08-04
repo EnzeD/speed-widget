@@ -3,6 +3,25 @@ import Testing
 @testable import SpeedWidgetCore
 
 struct QualityScorerTests {
+    @Test("The probe client refuses non-HTTPS endpoints")
+    func refusesNonHTTPSEndpoints() async {
+        let client = HTTPProbeClient()
+        let endpoint = ProbeEndpoint(url: URL(string: "http://example.com")!)
+
+        let result = await client.probe(endpoint)
+
+        #expect(!result.succeeded)
+        #expect(result.statusCode == nil)
+        #expect(result.transferredBytes == 0)
+    }
+
+    @Test("Capacity requests cannot exceed the micro-test limit")
+    func capsCapacityTestBytes() throws {
+        let bounded = try HTTPProbeClient.boundedCapacityTestBytes(10_000_000)
+
+        #expect(bounded == HTTPProbeClient.maximumCapacityTestBytes)
+    }
+
     @Test("A stable and fast connection gets an excellent score")
     func excellentConnection() {
         let now = Date()

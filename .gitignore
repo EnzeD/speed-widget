@@ -3,3 +3,19 @@
 .swiftpm/
 dist/
 DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xcarchive/
+*.dSYM/
+
+# Local configuration, credentials and Apple signing material.
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.pem
+*.key
+*.cer
+*.mobileprovision
+*.provisionprofile

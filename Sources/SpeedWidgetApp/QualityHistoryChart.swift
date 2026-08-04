@@ -39,7 +39,7 @@ struct QualityHistoryChart: View {
                 Chart {
                     ForEach(points) { point in
                         AreaMark(
-                            x: .value("Temps", point.date),
+                            x: .value("Time", point.date),
                             yStart: .value("Minimum", 0),
                             yEnd: .value("Score", point.score)
                         )
@@ -52,14 +52,14 @@ struct QualityHistoryChart: View {
                         )
 
                         LineMark(
-                            x: .value("Temps", point.date),
+                            x: .value("Time", point.date),
                             y: .value("Score", point.score)
                         )
                         .foregroundStyle(color)
                         .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                     }
 
-                    RuleMark(y: .value("Bon", 70))
+                    RuleMark(y: .value("Good", 70))
                         .foregroundStyle(.secondary.opacity(0.35))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
                 }
