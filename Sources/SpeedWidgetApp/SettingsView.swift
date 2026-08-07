@@ -1,8 +1,10 @@
+import AppKit
 import SpeedWidgetCore
 import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var monitor: NetworkQualityMonitor
+    @StateObject private var launchAtLogin = LaunchAtLoginController()
 
     var body: some View {
         Form {
@@ -11,6 +13,26 @@ struct SettingsView: View {
                 LabeledContent("On constrained networks", value: "Every 15 seconds")
                 LabeledContent("Usage", value: "Daily counter")
                 LabeledContent("Micro-test", value: "Manual · 2 MB maximum")
+            }
+
+            Section("Startup") {
+                Toggle("Launch Speed Widget at login", isOn: launchAtLoginBinding)
+
+                if launchAtLogin.requiresApproval {
+                    HStack {
+                        Text("Approval is required in macOS Login Items.")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Open Login Items…") {
+                            launchAtLogin.openLoginItemsSettings()
+                        }
+                    }
+                }
+
+                if let error = launchAtLogin.errorMessage {
+                    Text(error)
+                        .foregroundStyle(.red)
+                }
             }
 
             Section("Privacy") {
@@ -24,6 +46,19 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 360)
+        .frame(width: 480, height: 460)
+        .onAppear {
+            launchAtLogin.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            launchAtLogin.refresh()
+        }
+    }
+
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { launchAtLogin.isEnabled },
+            set: { launchAtLogin.setEnabled($0) }
+        )
     }
 }
