@@ -45,6 +45,14 @@ open "dist/SpeedWidget.app"
 
 The script creates `dist/SpeedWidget.app` for the architecture of the Mac that builds it. Because the bundle is ad-hoc signed rather than notarized, macOS may show a first-launch warning. In Finder, Control-click the app, choose **Open**, then confirm **Open**. Do not disable Gatekeeper globally.
 
+To relaunch the local build later:
+
+```sh
+open "dist/SpeedWidget.app"
+```
+
+To start Speed Widget automatically after signing in, open its settings from the gear button and enable **Launch Speed Widget at login**. macOS may ask you to approve it under **System Settings → General → Login Items & Extensions**. The app uses Apple's Service Management API and does not install a custom LaunchAgent.
+
 ### Run during development
 
 ```sh
