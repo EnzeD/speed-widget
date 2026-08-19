@@ -122,7 +122,7 @@ public enum QualityScorer {
 
         let latencyComponent = interpolate(
             currentLatency,
-            points: [(0, 100), (20, 100), (50, 85), (100, 60), (250, 20), (1_000, 0)]
+            points: [(0, 100), (50, 100), (100, 60), (250, 20), (1_000, 0)]
         )
         let jitterComponent = interpolate(
             jitter,
