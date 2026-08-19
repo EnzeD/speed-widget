@@ -45,6 +45,43 @@ struct QualityScorerTests {
         #expect(result.confidence == MeasurementConfidence.high)
     }
 
+    @Test("Latency up to fifty milliseconds receives the maximum latency score")
+    func maximumLatencyScoreThroughFiftyMilliseconds() {
+        let now = Date()
+        let samples = (0..<6).map { index in
+            ProbeSample(
+                date: now.addingTimeInterval(Double(index - 6) * 5),
+                latencyMilliseconds: 50,
+                succeeded: true,
+                observedDuringTraffic: false
+            )
+        }
+
+        let result = QualityScorer.snapshot(from: samples, now: now)
+
+        #expect(result.latencyMilliseconds == 50)
+        #expect(result.score == 100)
+    }
+
+    @Test("Latency above fifty milliseconds starts reducing the score")
+    func latencyAboveFiftyStartsPenalty() {
+        let now = Date()
+        let samples = (0..<6).map { index in
+            ProbeSample(
+                date: now.addingTimeInterval(Double(index - 6) * 5),
+                latencyMilliseconds: 75,
+                succeeded: true,
+                observedDuringTraffic: false
+            )
+        }
+
+        let result = QualityScorer.snapshot(from: samples, now: now)
+
+        #expect(result.latencyMilliseconds == 75)
+        #expect(result.score != nil)
+        #expect(result.score! < 100)
+    }
+
     @Test("Three consecutive failures indicate an outage")
     func detectsOfflineState() {
         let now = Date()
